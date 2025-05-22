@@ -30,3 +30,18 @@ model Session {
   collaborator  Boolean?  @default(false)
   emailVerified Boolean?  @default(false)
 }
+
+// model Post {
+//   id        Int      @id @default(autoincrement())
+//   name      String
+//   createdAt DateTime @default(now())
+//   updatedAt DateTime @updatedAt
+// }
+
+model LlmContentCache {
+  id         Int      @id @default(autoincrement())
+  shop       String   @unique // shop domain should be unique
+  content    String   // Removed @db.Text for SQLite compatibility
+  updatedAt  DateTime @updatedAt
+  createdAt  DateTime @default(now())
+}

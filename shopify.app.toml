@@ -3,7 +3,7 @@
 client_id = "b62d3887e9fd0592bbdd077071c28061"
 name = "llms-generator"
 handle = "llms-generator"
-application_url = "https://fact-course-tribune-firewire.trycloudflare.com"
+application_url = "https://armstrong-automotive-say-transmitted.trycloudflare.com"
 embedded = true
 
 [build]
@@ -23,14 +23,19 @@ api_version = "2025-04"
 
 [access_scopes]
 # Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
-scopes = "write_products"
+scopes = "write_products,read_content"
 
 [auth]
 redirect_urls = [
-  "https://fact-course-tribune-firewire.trycloudflare.com/auth/callback",
-  "https://fact-course-tribune-firewire.trycloudflare.com/auth/shopify/callback",
-  "https://fact-course-tribune-firewire.trycloudflare.com/api/auth/callback"
+  "https://armstrong-automotive-say-transmitted.trycloudflare.com/auth/callback",
+  "https://armstrong-automotive-say-transmitted.trycloudflare.com/auth/shopify/callback",
+  "https://armstrong-automotive-say-transmitted.trycloudflare.com/api/auth/callback"
 ]
 
 [pos]
 embedded = false
+
+[app_proxy]
+url = "https://armstrong-automotive-say-transmitted.trycloudflare.com/proxy"
+subpath = "llmstxt"
+prefix = "apps"

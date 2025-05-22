@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
-import { useFetcher } from "@remix-run/react";
+import { useFetcher, useLoaderData, Link } from "@remix-run/react";
 import {
   Page,
   Layout,
@@ -10,16 +10,32 @@ import {
   BlockStack,
   Box,
   List,
-  Link,
+  Divider,
   InlineStack,
+  Spinner,
+  Banner,
 } from "@shopify/polaris";
 import { TitleBar, useAppBridge } from "@shopify/app-bridge-react";
 import { authenticate } from "../shopify.server";
+import { json } from "@remix-run/node";
+
+// Define the expected return type for the cache update action
+interface UpdateCacheSuccess {
+  success: true;
+  message: string;
+  charCount: number;
+}
+interface UpdateCacheError {
+  success: false;
+  error: string;
+}
+type UpdateCacheResponse = UpdateCacheSuccess | UpdateCacheError;
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  await authenticate.admin(request);
-
-  return null;
+  const { session } = await authenticate.admin(request); // Get session
+  const { shop } = session; // Get shop domain from session
+  // 在这里可以加载需要的数据
+  return json({ apiKey: process.env.SHOPIFY_API_KEY, shop }); // Return shop domain
 };
 
 export const action = async ({ request }: ActionFunctionArgs) => {
@@ -92,7 +108,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 };
 
 export default function Index() {
+  const { apiKey, shop } = useLoaderData<typeof loader>();
   const fetcher = useFetcher<typeof action>();
+  const updateCacheFetcher = useFetcher<UpdateCacheResponse>();
 
   const shopify = useAppBridge();
   const isLoading =
@@ -108,227 +126,167 @@ export default function Index() {
       shopify.toast.show("Product created");
     }
   }, [productId, shopify]);
-  const generateProduct = () => fetcher.submit({}, { method: "POST" });
+
+  const llmsTxtUrl = `https://${shop}/apps/llmstxt/llms.txt`;
 
   return (
     <Page>
-      <TitleBar title="Remix app template">
-        <button variant="primary" onClick={generateProduct}>
-          Generate a product
-        </button>
-      </TitleBar>
-      <BlockStack gap="500">
-        <Layout>
-          <Layout.Section>
+      <Layout>
+        <Layout.Section>
+          <BlockStack gap="500">
+            <InlineStack align="space-between" blockAlign="center">
+              <Text variant="headingXl" as="h1">
+                LLMs.txt Generator
+              </Text>
+              <Button variant="primary" url={llmsTxtUrl} target="_blank">
+                View llms.txt
+              </Button>
+            </InlineStack>
+
+            <Text as="p" variant="bodyMd">
+              Easily control how AI models like ChatGPT, Claude, and Perplexity
+              interact with your store. Use LLMs.txt to manage access to your
+              content—whether you want to block AI crawlers or guide them to
+              what matters.
+            </Text>
+
             <Card>
               <BlockStack gap="500">
-                <BlockStack gap="200">
-                  <Text as="h2" variant="headingMd">
-                    Congrats on creating a new Shopify app 🎉
-                  </Text>
-                  <Text variant="bodyMd" as="p">
-                    This embedded app template uses{" "}
-                    <Link
-                      url="https://shopify.dev/docs/apps/tools/app-bridge"
-                      target="_blank"
-                      removeUnderline
-                    >
-                      App Bridge
-                    </Link>{" "}
-                    interface examples like an{" "}
-                    <Link url="/app/additional" removeUnderline>
-                      additional page in the app nav
-                    </Link>
-                    , as well as an{" "}
-                    <Link
-                      url="https://shopify.dev/docs/api/admin-graphql"
-                      target="_blank"
-                      removeUnderline
-                    >
-                      Admin GraphQL
-                    </Link>{" "}
-                    mutation demo, to provide a starting point for app
-                    development.
-                  </Text>
+                <Text variant="headingMd" as="h2">
+                  Configuration Options
+                </Text>
+                <BlockStack gap="300">
+                  <div>
+                    <Text variant="headingSm" as="h3">
+                      LLMs.txt Generator Settings
+                    </Text>
+                    <Text as="p" variant="bodySm" tone="subdued">
+                      Set rules for which pages you want AI bots to know about.
+                    </Text>
+                  </div>
+                  <Divider />
+                  <div>
+                    <Text variant="headingSm" as="h3">
+                      Crawler Settings
+                    </Text>
+                    <Text as="p" variant="bodySm" tone="subdued">
+                      Allow or block specific LLM crawlers like GPTBot,
+                      Anthropic, or Google-Extended.
+                    </Text>
+                  </div>
+                  <Divider />
+                  <div>
+                    <Text variant="headingSm" as="h3">
+                      Content Filtering Settings
+                    </Text>
+                    <Text as="p" variant="bodySm" tone="subdued">
+                      Fine-tune which pages or website resources are exposed to
+                      AI tools.
+                    </Text>
+                  </div>
                 </BlockStack>
-                <BlockStack gap="200">
-                  <Text as="h3" variant="headingMd">
-                    Get started with products
-                  </Text>
-                  <Text as="p" variant="bodyMd">
-                    Generate a product with GraphQL and get the JSON output for
-                    that product. Learn more about the{" "}
-                    <Link
-                      url="https://shopify.dev/docs/api/admin-graphql/latest/mutations/productCreate"
-                      target="_blank"
-                      removeUnderline
-                    >
-                      productCreate
-                    </Link>{" "}
-                    mutation in our API references.
-                  </Text>
-                </BlockStack>
-                <InlineStack gap="300">
-                  <Button loading={isLoading} onClick={generateProduct}>
-                    Generate a product
+              </BlockStack>
+            </Card>
+
+            <Card>
+              <BlockStack gap="300">
+                <Text variant="headingMd" as="h2">
+                  Cache Management
+                </Text>
+                <updateCacheFetcher.Form
+                  method="post"
+                  action="/action/update-llms-cache"
+                >
+                  <Button
+                    submit
+                    loading={updateCacheFetcher.state === "submitting"}
+                    variant="primary"
+                  >
+                    Update LLMs.txt Cache Now
                   </Button>
-                  {fetcher.data?.product && (
-                    <Button
-                      url={`shopify:admin/products/${productId}`}
-                      target="_blank"
-                      variant="plain"
-                    >
-                      View product
-                    </Button>
-                  )}
-                </InlineStack>
-                {fetcher.data?.product && (
-                  <>
-                    <Text as="h3" variant="headingMd">
-                      {" "}
-                      productCreate mutation
+                </updateCacheFetcher.Form>
+                {updateCacheFetcher.state === "loading" && (
+                  <InlineStack gap="200" align="center">
+                    <Spinner size="small" />
+                    <Text as="span" tone="subdued">
+                      Updating cache...
                     </Text>
-                    <Box
-                      padding="400"
-                      background="bg-surface-active"
-                      borderWidth="025"
-                      borderRadius="200"
-                      borderColor="border"
-                      overflowX="scroll"
-                    >
-                      <pre style={{ margin: 0 }}>
-                        <code>
-                          {JSON.stringify(fetcher.data.product, null, 2)}
-                        </code>
-                      </pre>
-                    </Box>
-                    <Text as="h3" variant="headingMd">
-                      {" "}
-                      productVariantsBulkUpdate mutation
-                    </Text>
-                    <Box
-                      padding="400"
-                      background="bg-surface-active"
-                      borderWidth="025"
-                      borderRadius="200"
-                      borderColor="border"
-                      overflowX="scroll"
-                    >
-                      <pre style={{ margin: 0 }}>
-                        <code>
-                          {JSON.stringify(fetcher.data.variant, null, 2)}
-                        </code>
-                      </pre>
-                    </Box>
-                  </>
+                  </InlineStack>
+                )}
+                {updateCacheFetcher.data && (
+                  <Box paddingBlockStart="300">
+                    {updateCacheFetcher.data.success === true && (
+                      <Banner
+                        title="Cache Update Status"
+                        tone="success"
+                        onDismiss={() => {
+                          updateCacheFetcher.data = undefined;
+                        }}
+                      >
+                        <p>
+                          {
+                            (updateCacheFetcher.data as UpdateCacheSuccess)
+                              .message
+                          }{" "}
+                          (Characters:{" "}
+                          {
+                            (updateCacheFetcher.data as UpdateCacheSuccess)
+                              .charCount
+                          }
+                          )
+                        </p>
+                      </Banner>
+                    )}
+                    {updateCacheFetcher.data.success === false && (
+                      <Banner
+                        title="Cache Update Failed"
+                        tone="critical"
+                        onDismiss={() => {
+                          updateCacheFetcher.data = undefined;
+                        }}
+                      >
+                        <p>
+                          {(updateCacheFetcher.data as UpdateCacheError).error}
+                        </p>
+                      </Banner>
+                    )}
+                  </Box>
                 )}
               </BlockStack>
             </Card>
-          </Layout.Section>
-          <Layout.Section variant="oneThird">
-            <BlockStack gap="500">
-              <Card>
-                <BlockStack gap="200">
-                  <Text as="h2" variant="headingMd">
-                    App template specs
-                  </Text>
-                  <BlockStack gap="200">
-                    <InlineStack align="space-between">
-                      <Text as="span" variant="bodyMd">
-                        Framework
-                      </Text>
-                      <Link
-                        url="https://remix.run"
-                        target="_blank"
-                        removeUnderline
-                      >
-                        Remix
-                      </Link>
-                    </InlineStack>
-                    <InlineStack align="space-between">
-                      <Text as="span" variant="bodyMd">
-                        Database
-                      </Text>
-                      <Link
-                        url="https://www.prisma.io/"
-                        target="_blank"
-                        removeUnderline
-                      >
-                        Prisma
-                      </Link>
-                    </InlineStack>
-                    <InlineStack align="space-between">
-                      <Text as="span" variant="bodyMd">
-                        Interface
-                      </Text>
-                      <span>
-                        <Link
-                          url="https://polaris.shopify.com"
-                          target="_blank"
-                          removeUnderline
-                        >
-                          Polaris
-                        </Link>
-                        {", "}
-                        <Link
-                          url="https://shopify.dev/docs/apps/tools/app-bridge"
-                          target="_blank"
-                          removeUnderline
-                        >
-                          App Bridge
-                        </Link>
-                      </span>
-                    </InlineStack>
-                    <InlineStack align="space-between">
-                      <Text as="span" variant="bodyMd">
-                        API
-                      </Text>
-                      <Link
-                        url="https://shopify.dev/docs/api/admin-graphql"
-                        target="_blank"
-                        removeUnderline
-                      >
-                        GraphQL API
-                      </Link>
-                    </InlineStack>
-                  </BlockStack>
-                </BlockStack>
-              </Card>
-              <Card>
-                <BlockStack gap="200">
-                  <Text as="h2" variant="headingMd">
-                    Next steps
-                  </Text>
-                  <List>
-                    <List.Item>
-                      Build an{" "}
-                      <Link
-                        url="https://shopify.dev/docs/apps/getting-started/build-app-example"
-                        target="_blank"
-                        removeUnderline
-                      >
-                        {" "}
-                        example app
-                      </Link>{" "}
-                      to get started
-                    </List.Item>
-                    <List.Item>
-                      Explore Shopify’s API with{" "}
-                      <Link
-                        url="https://shopify.dev/docs/apps/tools/graphiql-admin-api"
-                        target="_blank"
-                        removeUnderline
-                      >
-                        GraphiQL
-                      </Link>
-                    </List.Item>
-                  </List>
-                </BlockStack>
-              </Card>
-            </BlockStack>
-          </Layout.Section>
-        </Layout>
-      </BlockStack>
+
+            <Card>
+              <BlockStack gap="300">
+                <Text variant="headingMd" as="h2">
+                  Frequently Asked Questions
+                </Text>
+                <List type="bullet">
+                  <List.Item>What is llms.txt?</List.Item>
+                  <List.Item>
+                    Why is llms.txt important for my Shopify store?
+                  </List.Item>
+                  <List.Item>What is answer engine optimization?</List.Item>
+                  <List.Item>
+                    Can I block ChatGPT, Claude, or Perplexity from using my
+                    store content?
+                  </List.Item>
+                  <List.Item>
+                    Do I need technical knowledge to use this app?
+                    <Text as="p" variant="bodySm" tone="subdued">
+                      No technical skills are required. LLMs.txt Generator
+                      handles everything for you. Just install the app, choose
+                      which bots you want to allow or block, and your llms.txt
+                      file will be created and kept up-to-date. It's
+                      plug-and-play — built for busy merchants who want to stay
+                      ahead without touching code.
+                    </Text>
+                  </List.Item>
+                </List>
+              </BlockStack>
+            </Card>
+          </BlockStack>
+        </Layout.Section>
+      </Layout>
     </Page>
   );
 }
