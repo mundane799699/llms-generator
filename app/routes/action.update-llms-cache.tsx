@@ -195,15 +195,21 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
     // Use session.shop directly as it's guaranteed to be the myshopify.com domain for Admin API context
     const shopDomain = shop;
-    // Fetch shop name for a friendlier display, fallback to part of domain if needed
+    // Fetch shop name and description
     const shopDataResponse = await admin.graphql(
-      `query GetShopData { shop { name } }`,
+      `query GetShopData { shop { name description } }`, // Added description to the query
     );
     const shopDataJson = await shopDataResponse.json();
     const shopName = shopDataJson.data?.shop?.name || shopDomain.split(".")[0];
+    const shopDescription = shopDataJson.data?.shop?.description; // Extracted shop description
     console.log("get shop data success.");
 
     llmsTxtContent += `# [${shopName}](https://${shopDomain})\n\n`;
+
+    // Add shop description if it exists
+    if (shopDescription) {
+      llmsTxtContent += `${shopDescription}\n\n`;
+    }
 
     // --- Fetch Products ---
     const products = await fetchAllShopifyResources<ShopifyProductNode>(
