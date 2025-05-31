@@ -3,7 +3,7 @@
 client_id = "b62d3887e9fd0592bbdd077071c28061"
 name = "llms-generator"
 handle = "llms-generator"
-application_url = "https://sport-bizrate-generators-key.trycloudflare.com"
+application_url = "https://software-mask-lifetime-reflects.trycloudflare.com"
 embedded = true
 
 [build]
@@ -27,15 +27,15 @@ scopes = "write_products,read_content"
 
 [auth]
 redirect_urls = [
-  "https://sport-bizrate-generators-key.trycloudflare.com/auth/callback",
-  "https://sport-bizrate-generators-key.trycloudflare.com/auth/shopify/callback",
-  "https://sport-bizrate-generators-key.trycloudflare.com/api/auth/callback"
+  "https://software-mask-lifetime-reflects.trycloudflare.com/auth/callback",
+  "https://software-mask-lifetime-reflects.trycloudflare.com/auth/shopify/callback",
+  "https://software-mask-lifetime-reflects.trycloudflare.com/api/auth/callback"
 ]
 
 [pos]
 embedded = false
 
 [app_proxy]
-url = "https://sport-bizrate-generators-key.trycloudflare.com/proxy"
+url = "https://software-mask-lifetime-reflects.trycloudflare.com/proxy"
 subpath = "llmstxt"
 prefix = "apps"

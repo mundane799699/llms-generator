@@ -45,3 +45,27 @@ model LlmContentCache {
   updatedAt  DateTime @updatedAt
   createdAt  DateTime @default(now())
 }
+
+model Settings {
+  id        Int      @id @default(autoincrement())
+  shop      String   @unique // 每个店铺唯一
+  
+  // 爬虫设置
+  gptBot         Boolean @default(true)
+  anthropicAI    Boolean @default(true)
+  googleExtended Boolean @default(true)
+  perplexityBot  Boolean @default(true)
+  deepSeekBot    Boolean @default(true)
+  
+  // 内容设置
+  includeProducts    Boolean @default(true)
+  includeCollections Boolean @default(true)
+  includePages       Boolean @default(true)
+  includeArticles    Boolean @default(true)
+  
+  // 自动同步设置
+  autoSyncEnabled Boolean @default(true)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
