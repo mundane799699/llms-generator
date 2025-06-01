@@ -2,82 +2,148 @@ import {
   Box,
   Card,
   Layout,
-  Link,
-  List,
   Page,
   Text,
   BlockStack,
+  InlineStack,
+  Button,
+  Icon,
 } from "@shopify/polaris";
 import { TitleBar } from "@shopify/app-bridge-react";
+import { CheckIcon } from "@shopify/polaris-icons";
 
 export default function PlansPage() {
+  const plans = [
+    {
+      name: "Free",
+      price: "Free",
+      period: "",
+      features: [
+        "Homepage",
+        "100 Products",
+        "5 Collections",
+        "5 blogs",
+        "3 AI Supported",
+      ],
+      buttonText: "",
+      buttonVariant: undefined,
+    },
+    {
+      name: "Basic",
+      price: "$10",
+      period: "per month",
+      features: [
+        "Homepage",
+        "500 Products",
+        "50 Collections",
+        "100 blogs",
+        "Auto-sync Every Week",
+        "All AI Supported",
+      ],
+      buttonText: "Activate Plan",
+      buttonVariant: "primary",
+    },
+    {
+      name: "Pro",
+      price: "$30",
+      period: "per month",
+      features: [
+        "Homepage",
+        "Unlimited Products",
+        "Unlimited Collections",
+        "Unlimited blogs",
+        "Unlimited Pages",
+        "Auto-sync Every Week",
+        "All AI Supported",
+      ],
+      buttonText: "Activate Plan",
+      buttonVariant: "primary",
+    },
+  ];
+
   return (
     <Page>
       <TitleBar title="Plans" />
       <Layout>
         <Layout.Section>
-          <Card>
-            <BlockStack gap="300">
-              <Text as="p" variant="bodyMd">
-                The app template comes with an additional page which
-                demonstrates how to create multiple pages within app navigation
-                using{" "}
-                <Link
-                  url="https://shopify.dev/docs/apps/tools/app-bridge"
-                  target="_blank"
-                  removeUnderline
-                >
-                  App Bridge
-                </Link>
-                .
-              </Text>
-              <Text as="p" variant="bodyMd">
-                To create your own page and have it show up in the app
-                navigation, add a page inside <Code>app/routes</Code>, and a
-                link to it in the <Code>&lt;NavMenu&gt;</Code> component found
-                in <Code>app/routes/app.jsx</Code>.
-              </Text>
-            </BlockStack>
-          </Card>
-        </Layout.Section>
-        <Layout.Section variant="oneThird">
-          <Card>
-            <BlockStack gap="200">
-              <Text as="h2" variant="headingMd">
-                Resources
-              </Text>
-              <List>
-                <List.Item>
-                  <Link
-                    url="https://shopify.dev/docs/apps/design-guidelines/navigation#app-nav"
-                    target="_blank"
-                    removeUnderline
-                  >
-                    App nav best practices
-                  </Link>
-                </List.Item>
-              </List>
-            </BlockStack>
-          </Card>
+          <BlockStack gap="600">
+            <Box paddingBlockStart="400">
+              <BlockStack gap="200">
+                <Text as="h1" variant="headingXl">
+                  Subscription Plans
+                </Text>
+                <Text as="p" variant="bodyMd" tone="subdued">
+                  Choose a plan that works best for your business
+                </Text>
+              </BlockStack>
+            </Box>
+
+            <InlineStack gap="400">
+              {plans.map((plan, index) => (
+                <Box key={index} minWidth="300px">
+                  <Card>
+                    <Box minHeight="300px">
+                      <BlockStack gap="400" inlineAlign="stretch">
+                        <BlockStack gap="200">
+                          <Text as="h2" variant="headingMd" tone="subdued">
+                            {plan.name}
+                          </Text>
+                          <BlockStack gap="100">
+                            <InlineStack
+                              gap="100"
+                              align="start"
+                              blockAlign="end"
+                            >
+                              <Text as="span" variant="headingXl">
+                                {plan.price}
+                              </Text>
+                              {plan.period && (
+                                <Text as="span" variant="bodyMd" tone="subdued">
+                                  {plan.period}
+                                </Text>
+                              )}
+                            </InlineStack>
+                          </BlockStack>
+                        </BlockStack>
+
+                        <BlockStack gap="100">
+                          {plan.features.map((feature, featureIndex) => (
+                            <InlineStack
+                              key={featureIndex}
+                              gap="100"
+                              align="start"
+                              blockAlign="start"
+                            >
+                              <Box minWidth="20px">
+                                <Icon source={CheckIcon} tone="success" />
+                              </Box>
+                              <Text as="span" variant="bodyMd">
+                                {feature}
+                              </Text>
+                            </InlineStack>
+                          ))}
+                        </BlockStack>
+
+                        <Box paddingBlockStart="400">
+                          {plan.buttonText && (
+                            <Button
+                              variant={plan.buttonVariant as any}
+                              size="large"
+                              fullWidth
+                            >
+                              {plan.buttonText}
+                            </Button>
+                          )}
+                        </Box>
+                      </BlockStack>
+                    </Box>
+                  </Card>
+                </Box>
+              ))}
+            </InlineStack>
+          </BlockStack>
         </Layout.Section>
       </Layout>
     </Page>
-  );
-}
-
-function Code({ children }: { children: React.ReactNode }) {
-  return (
-    <Box
-      as="span"
-      padding="025"
-      paddingInlineStart="100"
-      paddingInlineEnd="100"
-      background="bg-surface-active"
-      borderWidth="025"
-      borderColor="border"
-      borderRadius="100"
-    >
-      <code>{children}</code>
-    </Box>
   );
 }
