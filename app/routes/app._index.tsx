@@ -30,20 +30,18 @@ interface UpdateCacheError {
 type UpdateCacheResponse = UpdateCacheSuccess | UpdateCacheError;
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  const { session } = await authenticate.admin(request);
+  const { admin, session } = await authenticate.admin(request);
   const { shop } = session;
-  return json({ apiKey: process.env.SHOPIFY_API_KEY, shop });
-};
-
-export const action = async ({ request }: ActionFunctionArgs) => {
-  const { admin } = await authenticate.admin(request);
-  // 这里可以添加生成或发布LLMS.txt的逻辑
-  return json({ success: true });
+  const shopDataResponse = await admin.graphql(
+    `query GetShopData { shop { name description } }`, // Added description to the query
+  );
+  const shopDataJson = await shopDataResponse.json();
+  const shopName = shopDataJson.data?.shop?.name;
+  return json({ shopName, shop });
 };
 
 export default function Index() {
-  const { apiKey, shop } = useLoaderData<typeof loader>();
-  const fetcher = useFetcher<typeof action>();
+  const { shopName, shop } = useLoaderData<typeof loader>();
   const updateCacheFetcher = useFetcher<UpdateCacheResponse>();
 
   const shopify = useAppBridge();
@@ -67,7 +65,7 @@ export default function Index() {
             {/* 欢迎标题 */}
             <BlockStack gap="200">
               <Text variant="headingXl" as="h1">
-                {shop}, welcome onboard.
+                {shopName}, welcome onboard.
               </Text>
               <Text variant="bodyLg" as="p" tone="subdued">
                 One Step to Unlock AI-Driven Growth for Your Store.
