@@ -16,6 +16,7 @@ import {
 import { TitleBar, useAppBridge } from "@shopify/app-bridge-react";
 import { authenticate } from "../shopify.server";
 import { json } from "@remix-run/node";
+import db from "../db.server";
 
 // Define the expected return type for the cache update action
 interface UpdateCacheSuccess {
@@ -37,11 +38,28 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   );
   const shopDataJson = await shopDataResponse.json();
   const shopName = shopDataJson.data?.shop?.name;
-  return json({ shopName, shop });
+
+  // Query cache to check if content exists and get last update time
+  let cacheInfo = null;
+  try {
+    const cachedData = await db.llmContentCache.findUnique({
+      where: { shop },
+    });
+    if (cachedData) {
+      cacheInfo = {
+        lastUpdated: cachedData.updatedAt,
+        hasContent: !!cachedData.content,
+      };
+    }
+  } catch (error) {
+    console.error("Error querying cache:", error);
+  }
+
+  return json({ shopName, shop, cacheInfo });
 };
 
 export default function Index() {
-  const { shopName, shop } = useLoaderData<typeof loader>();
+  const { shopName, shop, cacheInfo } = useLoaderData<typeof loader>();
   const updateCacheFetcher = useFetcher<UpdateCacheResponse>();
 
   const shopify = useAppBridge();
@@ -59,14 +77,20 @@ export default function Index() {
 
   return (
     <Page>
+      <TitleBar title="LLMS.txt Generator" />
       <Layout>
         <Layout.Section>
           <BlockStack gap="800">
             {/* 欢迎标题 */}
             <BlockStack gap="200">
-              <Text variant="headingXl" as="h1">
-                {shopName}, welcome onboard.
-              </Text>
+              <InlineStack align="space-between">
+                <Text variant="headingXl" as="h1">
+                  {shopName}, welcome onboard.
+                </Text>
+                <Button variant="primary" url={llmsTxtUrl} target="_blank">
+                  View LLMS.txt
+                </Button>
+              </InlineStack>
               <Text variant="bodyLg" as="p" tone="subdued">
                 One Step to Unlock AI-Driven Growth for Your Store.
               </Text>
@@ -78,6 +102,22 @@ export default function Index() {
                 <Text variant="headingMd" as="h2">
                   Step 1: Generate your shop's LLMS.txt
                 </Text>
+
+                {cacheInfo && (
+                  <Box paddingBlockStart="200">
+                    <Text as="p" variant="bodySm" tone="subdued">
+                      Last updated:{" "}
+                      {new Date(cacheInfo.lastUpdated).toLocaleString("en-US", {
+                        year: "numeric",
+                        month: "long",
+                        day: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                        timeZoneName: "short",
+                      })}
+                    </Text>
+                  </Box>
+                )}
 
                 <InlineStack align="center">
                   <Button
@@ -121,15 +161,6 @@ export default function Index() {
                             }
                             )
                           </Text>
-                        </InlineStack>
-                        <InlineStack align="center">
-                          <Button
-                            variant="primary"
-                            url={llmsTxtUrl}
-                            target="_blank"
-                          >
-                            View
-                          </Button>
                         </InlineStack>
                       </BlockStack>
                     )}

@@ -10,6 +10,7 @@ import {
   Checkbox,
   Toast,
   Frame,
+  Button,
 } from "@shopify/polaris";
 import { TitleBar } from "@shopify/app-bridge-react";
 import { useState, useEffect } from "react";
@@ -144,9 +145,9 @@ export default function SettingsPage() {
     }
   }, [actionData]);
 
-  const saveSettings = (settingsToSave = llmsSettings) => {
+  const saveSettings = () => {
     const formData = new FormData();
-    formData.append("settings", JSON.stringify(settingsToSave));
+    formData.append("settings", JSON.stringify(llmsSettings));
     submit(formData, { method: "post" });
   };
 
@@ -176,60 +177,50 @@ export default function SettingsPage() {
                     label="GPTBot"
                     checked={llmsSettings.gptBot}
                     onChange={() => {
-                      const newSettings = {
+                      setLlmsSettings({
                         ...llmsSettings,
                         gptBot: !llmsSettings.gptBot,
-                      };
-                      setLlmsSettings(newSettings);
-                      saveSettings(newSettings);
+                      });
                     }}
                   />
                   <Checkbox
                     label="Anthropic-AI"
                     checked={llmsSettings.anthropicAI}
                     onChange={() => {
-                      const newSettings = {
+                      setLlmsSettings({
                         ...llmsSettings,
                         anthropicAI: !llmsSettings.anthropicAI,
-                      };
-                      setLlmsSettings(newSettings);
-                      saveSettings(newSettings);
+                      });
                     }}
                   />
                   <Checkbox
                     label="Google-Extended"
                     checked={llmsSettings.googleExtended}
                     onChange={() => {
-                      const newSettings = {
+                      setLlmsSettings({
                         ...llmsSettings,
                         googleExtended: !llmsSettings.googleExtended,
-                      };
-                      setLlmsSettings(newSettings);
-                      saveSettings(newSettings);
+                      });
                     }}
                   />
                   <Checkbox
                     label="PerplexityBot"
                     checked={llmsSettings.perplexityBot}
                     onChange={() => {
-                      const newSettings = {
+                      setLlmsSettings({
                         ...llmsSettings,
                         perplexityBot: !llmsSettings.perplexityBot,
-                      };
-                      setLlmsSettings(newSettings);
-                      saveSettings(newSettings);
+                      });
                     }}
                   />
                   <Checkbox
                     label="DeepSeekBot"
                     checked={llmsSettings.deepSeekBot}
                     onChange={() => {
-                      const newSettings = {
+                      setLlmsSettings({
                         ...llmsSettings,
                         deepSeekBot: !llmsSettings.deepSeekBot,
-                      };
-                      setLlmsSettings(newSettings);
-                      saveSettings(newSettings);
+                      });
                     }}
                   />
                 </BlockStack>
@@ -251,69 +242,40 @@ export default function SettingsPage() {
                     label="Products"
                     checked={llmsSettings.includeProducts}
                     onChange={() => {
-                      const newSettings = {
+                      setLlmsSettings({
                         ...llmsSettings,
                         includeProducts: !llmsSettings.includeProducts,
-                      };
-                      setLlmsSettings(newSettings);
-                      saveSettings(newSettings);
+                      });
                     }}
                   />
                   <Checkbox
                     label="Collections"
                     checked={llmsSettings.includeCollections}
                     onChange={() => {
-                      const newSettings = {
+                      setLlmsSettings({
                         ...llmsSettings,
                         includeCollections: !llmsSettings.includeCollections,
-                      };
-                      setLlmsSettings(newSettings);
-                      saveSettings(newSettings);
+                      });
                     }}
                   />
                   <Checkbox
                     label="Pages"
                     checked={llmsSettings.includePages}
                     onChange={() => {
-                      const newSettings = {
+                      setLlmsSettings({
                         ...llmsSettings,
                         includePages: !llmsSettings.includePages,
-                      };
-                      setLlmsSettings(newSettings);
-                      saveSettings(newSettings);
+                      });
                     }}
                   />
                   <Checkbox
                     label="Articles"
                     checked={llmsSettings.includeArticles}
                     onChange={() => {
-                      const newSettings = {
+                      setLlmsSettings({
                         ...llmsSettings,
                         includeArticles: !llmsSettings.includeArticles,
-                      };
-                      setLlmsSettings(newSettings);
-                      saveSettings(newSettings);
-                    }}
-                  />
-                </BlockStack>
-              </BlockStack>
-            </Card>
-          </Layout.Section>
-
-          <Layout.Section>
-            <Card>
-              <BlockStack gap="400">
-                <BlockStack gap="300">
-                  <Checkbox
-                    label="Weekly Auto-sync enabled"
-                    checked={llmsSettings.autoSyncEnabled}
-                    onChange={() => {
-                      const newSettings = {
-                        ...llmsSettings,
-                        autoSyncEnabled: !llmsSettings.autoSyncEnabled,
-                      };
-                      setLlmsSettings(newSettings);
-                      saveSettings(newSettings);
+                      });
                     }}
                   />
                 </BlockStack>
@@ -321,6 +283,21 @@ export default function SettingsPage() {
             </Card>
           </Layout.Section>
         </Layout>
+
+        {/* Fixed save button in bottom right corner */}
+        <div
+          style={{
+            position: "fixed",
+            bottom: "24px",
+            right: "24px",
+            zIndex: 1000,
+          }}
+        >
+          <Button variant="primary" size="large" onClick={saveSettings}>
+            Save Settings
+          </Button>
+        </div>
+
         {toastMarkup}
       </Page>
     </Frame>
