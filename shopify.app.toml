@@ -3,7 +3,7 @@
 client_id = "b62d3887e9fd0592bbdd077071c28061"
 name = "llms-generator"
 handle = "llms-generator"
-application_url = "https://ecuador-per-spy-sheffield.trycloudflare.com"
+application_url = "https://swing-municipal-retain-gbp.trycloudflare.com"
 embedded = true
 
 [build]
@@ -21,21 +21,25 @@ api_version = "2025-04"
   topics = [ "app/scopes_update" ]
   uri = "/webhooks/app/scopes_update"
 
+  [[webhooks.subscriptions]]
+  topics = [ "app_subscriptions/update" ]
+  uri = "/webhooks/app/subscriptions/update"
+
 [access_scopes]
 # Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
 scopes = "write_products,read_content"
 
 [auth]
 redirect_urls = [
-  "https://ecuador-per-spy-sheffield.trycloudflare.com/auth/callback",
-  "https://ecuador-per-spy-sheffield.trycloudflare.com/auth/shopify/callback",
-  "https://ecuador-per-spy-sheffield.trycloudflare.com/api/auth/callback"
+  "https://swing-municipal-retain-gbp.trycloudflare.com/auth/callback",
+  "https://swing-municipal-retain-gbp.trycloudflare.com/auth/shopify/callback",
+  "https://swing-municipal-retain-gbp.trycloudflare.com/api/auth/callback"
 ]
 
 [pos]
 embedded = false
 
 [app_proxy]
-url = "https://ecuador-per-spy-sheffield.trycloudflare.com/proxy"
+url = "https://swing-municipal-retain-gbp.trycloudflare.com/proxy"
 subpath = "llmstxt"
 prefix = "apps"

@@ -1,6 +1,7 @@
 import { json } from "@remix-run/node";
 import type { ActionFunctionArgs } from "@remix-run/node";
 import { authenticate } from "../shopify.server";
+import prisma from "../db.server";
 
 /**
  * 处理订阅创建的API路由
@@ -9,14 +10,18 @@ import { authenticate } from "../shopify.server";
 export async function action({ request }: ActionFunctionArgs) {
   try {
     // 验证请求是否来自已认证的Shopify商家
-    const { admin } = await authenticate.admin(request);
+    const { admin, session } = await authenticate.admin(request);
+
+    // 获取店铺域名
+    const shop = session.shop;
+    console.log("当前店铺:", shop);
 
     // 解析请求体，获取订阅计划信息
     const formData = await request.formData();
     const planName = formData.get("planName") as string;
     const price = formData.get("price") as string;
 
-    console.log("开始创建订阅:", { planName, price });
+    console.log("开始创建订阅:", { shop, planName, price });
 
     // 根据计划名称设置订阅参数
     let subscriptionParams;
@@ -98,12 +103,14 @@ export async function action({ request }: ActionFunctionArgs) {
       );
     }
 
-    // 获取确认URL（用户需要访问这个URL来完成支付）
+    // 获取确认URL和订阅信息
     const confirmationUrl =
       responseJson.data?.appSubscriptionCreate?.confirmationUrl;
+    const shopifySubscription =
+      responseJson.data?.appSubscriptionCreate?.appSubscription;
 
-    if (!confirmationUrl) {
-      console.error("未获得确认URL");
+    if (!confirmationUrl || !shopifySubscription) {
+      console.error("未获得确认URL或订阅信息");
       return json(
         {
           success: false,
@@ -113,14 +120,80 @@ export async function action({ request }: ActionFunctionArgs) {
       );
     }
 
-    console.log("订阅创建成功，确认URL:", confirmationUrl);
-
-    // 返回成功响应，包含确认URL
-    return json({
-      success: true,
-      confirmationUrl: confirmationUrl,
-      subscription: responseJson.data.appSubscriptionCreate.appSubscription,
+    console.log("Shopify订阅创建成功:", {
+      id: shopifySubscription.id,
+      status: shopifySubscription.status,
+      confirmationUrl,
     });
+
+    // 保存订阅信息到数据库
+    try {
+      // 先检查是否已存在该店铺的订阅记录
+      const existingSubscription = await (
+        prisma as any
+      ).subscription.findUnique({
+        where: { shop },
+      });
+
+      let dbSubscription;
+
+      if (existingSubscription) {
+        // 更新现有记录
+        dbSubscription = await prisma.subscription.update({
+          where: { shop },
+          data: {
+            subscriptionId: shopifySubscription.id,
+            planName: planName,
+            status: "PENDING", // 初始状态为PENDING，等待支付完成
+            price: subscriptionParams.price,
+            currency: "USD",
+            interval: subscriptionParams.interval,
+            updatedAt: new Date(),
+          },
+        });
+        console.log("更新现有订阅记录:", dbSubscription.id);
+      } else {
+        // 创建新记录
+        dbSubscription = await prisma.subscription.create({
+          data: {
+            shop: shop,
+            subscriptionId: shopifySubscription.id,
+            planName: planName,
+            status: "PENDING", // 初始状态为PENDING，等待支付完成
+            price: subscriptionParams.price,
+            currency: "USD",
+            interval: subscriptionParams.interval,
+          },
+        });
+        console.log("创建新订阅记录:", dbSubscription.id);
+      }
+
+      // 返回成功响应，包含确认URL和数据库记录信息
+      return json({
+        success: true,
+        confirmationUrl: confirmationUrl,
+        subscription: {
+          shopifyId: shopifySubscription.id,
+          dbId: dbSubscription.id,
+          planName: dbSubscription.planName,
+          status: dbSubscription.status,
+          price: dbSubscription.price,
+          currency: dbSubscription.currency,
+        },
+      });
+    } catch (dbError) {
+      console.error("保存订阅到数据库时发生错误:", dbError);
+
+      // 即使数据库保存失败，Shopify订阅已经创建成功
+      // 我们仍然返回确认URL让用户可以完成支付
+      // 可以通过webhook后续同步数据库状态
+      return json({
+        success: true,
+        confirmationUrl: confirmationUrl,
+        subscription: shopifySubscription,
+        warning: "订阅创建成功，但本地数据同步可能存在延迟",
+      });
+    }
   } catch (error) {
     console.error("订阅创建过程中发生错误:", error);
     return json(
