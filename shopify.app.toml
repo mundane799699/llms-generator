@@ -3,7 +3,7 @@
 client_id = "b62d3887e9fd0592bbdd077071c28061"
 name = "llms-generator"
 handle = "llms-generator"
-application_url = "https://swing-municipal-retain-gbp.trycloudflare.com"
+application_url = "https://nancy-vitamins-alumni-distinguished.trycloudflare.com"
 embedded = true
 
 [build]
@@ -31,15 +31,15 @@ scopes = "write_products,read_content"
 
 [auth]
 redirect_urls = [
-  "https://swing-municipal-retain-gbp.trycloudflare.com/auth/callback",
-  "https://swing-municipal-retain-gbp.trycloudflare.com/auth/shopify/callback",
-  "https://swing-municipal-retain-gbp.trycloudflare.com/api/auth/callback"
+  "https://nancy-vitamins-alumni-distinguished.trycloudflare.com/auth/callback",
+  "https://nancy-vitamins-alumni-distinguished.trycloudflare.com/auth/shopify/callback",
+  "https://nancy-vitamins-alumni-distinguished.trycloudflare.com/api/auth/callback"
 ]
 
 [pos]
 embedded = false
 
 [app_proxy]
-url = "https://swing-municipal-retain-gbp.trycloudflare.com/proxy"
+url = "https://nancy-vitamins-alumni-distinguished.trycloudflare.com/proxy"
 subpath = "llmstxt"
 prefix = "apps"
