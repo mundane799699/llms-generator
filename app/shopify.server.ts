@@ -8,8 +8,8 @@ import {
 import { PrismaSessionStorage } from "@shopify/shopify-app-session-storage-prisma";
 import prisma from "./db.server";
 
-export const BASIC_PLAN = "Basic";
-export const PRO_PLAN = "Pro";
+export const BASIC = "Basic";
+export const PRO = "Pro";
 
 const shopify = shopifyApp({
   apiKey: process.env.SHOPIFY_API_KEY,
@@ -21,7 +21,7 @@ const shopify = shopifyApp({
   sessionStorage: new PrismaSessionStorage(prisma),
   distribution: AppDistribution.AppStore,
   billing: {
-    [BASIC_PLAN]: {
+    [BASIC]: {
       lineItems: [
         {
           amount: 10,
@@ -30,7 +30,7 @@ const shopify = shopifyApp({
         },
       ],
     },
-    [PRO_PLAN]: {
+    [PRO]: {
       lineItems: [
         {
           amount: 30,

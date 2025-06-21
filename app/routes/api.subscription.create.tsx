@@ -28,14 +28,14 @@ export async function action({ request }: ActionFunctionArgs) {
 
     if (planName === "Basic") {
       subscriptionParams = {
-        name: "Basic Plan",
+        name: "Basic",
         price: 10.0,
         interval: "EVERY_30_DAYS", // 每30天收费一次
         trialDays: 0, // 无试用期
       };
     } else if (planName === "Pro") {
       subscriptionParams = {
-        name: "Pro Plan",
+        name: "Pro",
         price: 30.0,
         interval: "EVERY_30_DAYS",
         trialDays: 0,

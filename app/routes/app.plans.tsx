@@ -17,7 +17,7 @@ import { CheckIcon } from "@shopify/polaris-icons";
 import { useState } from "react";
 import { useFetcher, useLoaderData } from "@remix-run/react";
 import { json, type LoaderFunctionArgs } from "@remix-run/node";
-import { authenticate, BASIC_PLAN, PRO_PLAN } from "../shopify.server";
+import { authenticate, BASIC, PRO } from "../shopify.server";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { billing } = await authenticate.admin(request);
@@ -26,7 +26,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const isDevelopmentStore = process.env.NODE_ENV === "development";
 
   const billingCheck = await billing.check({
-    plans: [BASIC_PLAN, PRO_PLAN],
+    plans: [BASIC, PRO],
     isTest: isDevelopmentStore,
   });
   console.log("billingCheck", billingCheck);
