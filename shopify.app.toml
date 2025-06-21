@@ -3,7 +3,7 @@
 client_id = "b62d3887e9fd0592bbdd077071c28061"
 name = "llms-generator"
 handle = "llms-generator"
-application_url = "https://mozilla-editorial-utility-profiles.trycloudflare.com"
+application_url = "https://considerable-celebrities-gave-picnic.trycloudflare.com"
 embedded = true
 
 [build]
@@ -31,15 +31,15 @@ scopes = "write_products,read_content"
 
 [auth]
 redirect_urls = [
-  "https://mozilla-editorial-utility-profiles.trycloudflare.com/auth/callback",
-  "https://mozilla-editorial-utility-profiles.trycloudflare.com/auth/shopify/callback",
-  "https://mozilla-editorial-utility-profiles.trycloudflare.com/api/auth/callback"
+  "https://considerable-celebrities-gave-picnic.trycloudflare.com/auth/callback",
+  "https://considerable-celebrities-gave-picnic.trycloudflare.com/auth/shopify/callback",
+  "https://considerable-celebrities-gave-picnic.trycloudflare.com/api/auth/callback"
 ]
 
 [pos]
 embedded = false
 
 [app_proxy]
-url = "https://mozilla-editorial-utility-profiles.trycloudflare.com/proxy"
+url = "https://considerable-celebrities-gave-picnic.trycloudflare.com/proxy"
 subpath = "llmstxt"
 prefix = "apps"

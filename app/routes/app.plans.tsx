@@ -14,44 +14,68 @@ import {
 } from "@shopify/polaris";
 import { TitleBar, useAppBridge } from "@shopify/app-bridge-react";
 import { CheckIcon } from "@shopify/polaris-icons";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useFetcher, useLoaderData } from "@remix-run/react";
-import { json, type LoaderFunctionArgs } from "@remix-run/node";
-import { authenticate, BASIC, PRO } from "../shopify.server";
+import { json, type ActionFunctionArgs } from "@remix-run/node";
+import { authenticate, BASIC_PLAN, PRO_PLAN } from "../shopify.server";
 
-export const loader = async ({ request }: LoaderFunctionArgs) => {
+type ActionResponse = {
+  success: boolean;
+  error?: string;
+  confirmationUrl?: string;
+};
+
+export const loader = async ({ request }: ActionFunctionArgs) => {
   const { billing } = await authenticate.admin(request);
 
   // For development stores, use `isTest: true`
   const isDevelopmentStore = process.env.NODE_ENV === "development";
 
-  const billingCheck = await billing.check({
-    plans: [BASIC, PRO],
+  const { hasActivePayment, appSubscriptions } = await billing.check({
+    plans: [BASIC_PLAN, PRO_PLAN],
     isTest: isDevelopmentStore,
   });
-  console.log("billingCheck", billingCheck);
-
-  const { hasActivePayment, appSubscriptions } = billingCheck;
 
   const activeSubscription = hasActivePayment ? appSubscriptions[0] : null;
 
   return json({
     currentPlan: activeSubscription?.name || null,
+    subscriptionId: activeSubscription?.id || null,
   });
 };
 
 export default function PlansPage() {
-  const { currentPlan } = useLoaderData<typeof loader>();
-  console.log("currentPlan", currentPlan);
-  // 使用useState管理加载状态和错误信息
-  const [loadingPlan, setLoadingPlan] = useState<string | null>(null); // 追踪哪个计划正在加载
-  const [error, setError] = useState<string | null>(null); // 存储错误信息
+  const { currentPlan, subscriptionId } = useLoaderData<typeof loader>();
+  const activateFetcher = useFetcher<ActionResponse>();
+  const cancelFetcher = useFetcher<ActionResponse>();
 
-  // 使用Remix的useFetcher来处理API调用
-  // fetcher允许我们在不离开当前页面的情况下调用API
-  const fetcher = useFetcher();
+  const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  // 在组件中使用App Bridge
+  useEffect(() => {
+    // Handle cancellation success
+    if (cancelFetcher.data?.success) {
+      window.location.reload(); // Reload to get fresh data from loader
+    }
+    // Handle cancellation error
+    if (cancelFetcher.data?.error) {
+      setError(cancelFetcher.data.error);
+    }
+  }, [cancelFetcher.data]);
+
+  useEffect(() => {
+    // Handle activation success
+    if (activateFetcher.data?.success && loadingPlan) {
+      const { confirmationUrl } = activateFetcher.data as any;
+      window.open(confirmationUrl, "_top");
+    }
+    // Handle activation error
+    if (activateFetcher.data?.error && loadingPlan) {
+      setError(activateFetcher.data.error || "Failed to create subscription.");
+      setLoadingPlan(null);
+    }
+  }, [activateFetcher.data, loadingPlan]);
+
   const app = useAppBridge();
 
   // 定义订阅计划数据
@@ -68,7 +92,6 @@ export default function PlansPage() {
         "3 AI Supported",
       ],
       buttonText: "",
-      buttonVariant: undefined,
     },
     {
       name: "Basic",
@@ -101,58 +124,34 @@ export default function PlansPage() {
     },
   ];
 
-  /**
-   * 处理"Activate Plan"按钮点击事件
-   * @param planName - 选择的计划名称 (Basic 或 Pro)
-   * @param price - 计划价格
-   */
-  const handleActivatePlan = async (planName: string, price: string) => {
-    try {
-      console.log("current env:", process.env.NODE_ENV);
-      // 清除之前的错误信息
-      setError(null);
+  const handleActivatePlan = (planName: string, price: string) => {
+    setError(null);
+    setLoadingPlan(planName);
 
-      // 设置当前正在处理的计划，用于显示加载状态
-      setLoadingPlan(planName);
+    const formData = new FormData();
+    formData.append("planName", planName);
+    formData.append("price", price);
 
-      console.log(`用户点击激活计划: ${planName} (${price})`);
-
-      // 创建FormData对象来发送数据到后端API
-      const formData = new FormData();
-      formData.append("planName", planName);
-      formData.append("price", price);
-
-      // 使用fetcher提交数据到我们的API路由
-      // 这会调用 /api/subscription/create 路由的action函数
-      fetcher.submit(formData, {
-        method: "post",
-        action: "/api/subscription/create",
-      });
-    } catch (error) {
-      console.error("激活计划时发生错误:", error);
-      setError("激活计划时发生错误，请重试");
-      setLoadingPlan(null);
-    }
+    activateFetcher.submit(formData, {
+      method: "post",
+      action: "/api/subscription/create",
+    });
   };
 
-  // 监听fetcher的响应
-  // 当API调用完成时，这个effect会被触发
-  if (fetcher.data && loadingPlan) {
-    const response = fetcher.data as any;
-
-    if (response.success) {
-      // 订阅创建成功，重定向到Shopify支付页面
-      console.log("订阅创建成功，重定向到支付页面:", response.confirmationUrl);
-
-      // 使用App Bridge重定向
-      window.open(response.confirmationUrl, "_top");
-    } else {
-      // 订阅创建失败，显示错误信息
-      console.error("订阅创建失败:", response.error);
-      setError(response.error || "创建订阅时发生错误");
-      setLoadingPlan(null);
+  const handleCancelSubscription = () => {
+    if (!subscriptionId) {
+      setError("Active subscription ID not found.");
+      return;
     }
-  }
+    setError(null);
+    const formData = new FormData();
+    formData.append("subscriptionId", subscriptionId);
+
+    cancelFetcher.submit(formData, {
+      method: "post",
+      action: "/api/subscription/cancel",
+    });
+  };
 
   return (
     <Page>
@@ -160,7 +159,6 @@ export default function PlansPage() {
       <Layout>
         <Layout.Section>
           <BlockStack gap="600">
-            {/* 显示错误信息的横幅 */}
             {error && (
               <Banner
                 title="Error"
@@ -182,11 +180,12 @@ export default function PlansPage() {
               </BlockStack>
             </Box>
 
-            <InlineStack gap="400">
-              {plans.map((plan, index) => {
+            <InlineStack gap="400" align="start">
+              {plans.map((plan) => {
                 const isCurrentPlan = plan.name === currentPlan;
+
                 return (
-                  <Box key={index} minWidth="300px">
+                  <Box key={plan.name} minWidth="300px">
                     <Card>
                       <Box minHeight="300px">
                         <BlockStack gap="400" inlineAlign="stretch">
@@ -240,32 +239,37 @@ export default function PlansPage() {
                           </BlockStack>
 
                           <Box paddingBlockStart="400">
-                            {plan.buttonText && (
+                            {isCurrentPlan ? (
+                              <Button
+                                variant="primary"
+                                tone="critical"
+                                size="large"
+                                fullWidth
+                                loading={cancelFetcher.state === "submitting"}
+                                onClick={handleCancelSubscription}
+                              >
+                                Cancel Subscription
+                              </Button>
+                            ) : plan.buttonText ? (
                               <Button
                                 variant={plan.buttonVariant as any}
                                 size="large"
                                 fullWidth
-                                // 显示加载状态：如果当前计划正在处理，显示加载图标
                                 loading={loadingPlan === plan.name}
-                                // 禁用按钮：如果任何计划正在处理或fetcher正在提交数据
                                 disabled={
-                                  isCurrentPlan ||
+                                  !!currentPlan || // Disable if any plan is active
                                   loadingPlan !== null ||
-                                  fetcher.state === "submitting"
+                                  activateFetcher.state === "submitting"
                                 }
-                                // 点击事件：调用handleActivatePlan函数
                                 onClick={() =>
                                   handleActivatePlan(plan.name, plan.price)
                                 }
                               >
-                                {/* 根据加载状态显示不同的按钮文本 */}
-                                {isCurrentPlan
-                                  ? "Current Plan"
-                                  : loadingPlan === plan.name
-                                    ? "Processing..."
-                                    : plan.buttonText}
+                                {loadingPlan === plan.name
+                                  ? "Processing..."
+                                  : plan.buttonText}
                               </Button>
-                            )}
+                            ) : null}
                           </Box>
                         </BlockStack>
                       </Box>
