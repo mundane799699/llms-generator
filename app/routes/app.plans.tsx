@@ -10,14 +10,39 @@ import {
   Icon,
   Spinner,
   Banner,
+  Badge,
 } from "@shopify/polaris";
-import { TitleBar } from "@shopify/app-bridge-react";
+import { TitleBar, useAppBridge } from "@shopify/app-bridge-react";
 import { CheckIcon } from "@shopify/polaris-icons";
 import { useState } from "react";
-import { useFetcher } from "@remix-run/react";
-import { useAppBridge } from "@shopify/app-bridge-react";
+import { useFetcher, useLoaderData } from "@remix-run/react";
+import { json, type LoaderFunctionArgs } from "@remix-run/node";
+import { authenticate, BASIC_PLAN, PRO_PLAN } from "../shopify.server";
+
+export const loader = async ({ request }: LoaderFunctionArgs) => {
+  const { billing } = await authenticate.admin(request);
+
+  // For development stores, use `isTest: true`
+  const isDevelopmentStore = process.env.NODE_ENV === "development";
+
+  const billingCheck = await billing.check({
+    plans: [BASIC_PLAN, PRO_PLAN],
+    isTest: isDevelopmentStore,
+  });
+  console.log("billingCheck", billingCheck);
+
+  const { hasActivePayment, appSubscriptions } = billingCheck;
+
+  const activeSubscription = hasActivePayment ? appSubscriptions[0] : null;
+
+  return json({
+    currentPlan: activeSubscription?.name || null,
+  });
+};
 
 export default function PlansPage() {
+  const { currentPlan } = useLoaderData<typeof loader>();
+  console.log("currentPlan", currentPlan);
   // 使用useState管理加载状态和错误信息
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null); // 追踪哪个计划正在加载
   const [error, setError] = useState<string | null>(null); // 存储错误信息
@@ -158,81 +183,96 @@ export default function PlansPage() {
             </Box>
 
             <InlineStack gap="400">
-              {plans.map((plan, index) => (
-                <Box key={index} minWidth="300px">
-                  <Card>
-                    <Box minHeight="300px">
-                      <BlockStack gap="400" inlineAlign="stretch">
-                        <BlockStack gap="200">
-                          <Text as="h2" variant="headingMd" tone="subdued">
-                            {plan.name}
-                          </Text>
-                          <BlockStack gap="100">
-                            <InlineStack
-                              gap="100"
-                              align="start"
-                              blockAlign="end"
-                            >
-                              <Text as="span" variant="headingXl">
-                                {plan.price}
+              {plans.map((plan, index) => {
+                const isCurrentPlan = plan.name === currentPlan;
+                return (
+                  <Box key={index} minWidth="300px">
+                    <Card>
+                      <Box minHeight="300px">
+                        <BlockStack gap="400" inlineAlign="stretch">
+                          <BlockStack gap="200">
+                            <InlineStack gap="200" align="start">
+                              <Text as="h2" variant="headingMd" tone="subdued">
+                                {plan.name}
                               </Text>
-                              {plan.period && (
-                                <Text as="span" variant="bodyMd" tone="subdued">
-                                  {plan.period}
-                                </Text>
+                              {isCurrentPlan && (
+                                <Badge tone="success">Current Plan</Badge>
                               )}
                             </InlineStack>
+                            <BlockStack gap="100">
+                              <InlineStack
+                                gap="100"
+                                align="start"
+                                blockAlign="end"
+                              >
+                                <Text as="span" variant="headingXl">
+                                  {plan.price}
+                                </Text>
+                                {plan.period && (
+                                  <Text
+                                    as="span"
+                                    variant="bodyMd"
+                                    tone="subdued"
+                                  >
+                                    {plan.period}
+                                  </Text>
+                                )}
+                              </InlineStack>
+                            </BlockStack>
                           </BlockStack>
-                        </BlockStack>
 
-                        <BlockStack gap="100">
-                          {plan.features.map((feature, featureIndex) => (
-                            <InlineStack
-                              key={featureIndex}
-                              gap="100"
-                              align="start"
-                              blockAlign="start"
-                            >
-                              <Box minWidth="20px">
-                                <Icon source={CheckIcon} tone="success" />
-                              </Box>
-                              <Text as="span" variant="bodyMd">
-                                {feature}
-                              </Text>
-                            </InlineStack>
-                          ))}
-                        </BlockStack>
+                          <BlockStack gap="100">
+                            {plan.features.map((feature, featureIndex) => (
+                              <InlineStack
+                                key={featureIndex}
+                                gap="100"
+                                align="start"
+                                blockAlign="start"
+                              >
+                                <Box minWidth="20px">
+                                  <Icon source={CheckIcon} tone="success" />
+                                </Box>
+                                <Text as="span" variant="bodyMd">
+                                  {feature}
+                                </Text>
+                              </InlineStack>
+                            ))}
+                          </BlockStack>
 
-                        <Box paddingBlockStart="400">
-                          {plan.buttonText && (
-                            <Button
-                              variant={plan.buttonVariant as any}
-                              size="large"
-                              fullWidth
-                              // 显示加载状态：如果当前计划正在处理，显示加载图标
-                              loading={loadingPlan === plan.name}
-                              // 禁用按钮：如果任何计划正在处理或fetcher正在提交数据
-                              disabled={
-                                loadingPlan !== null ||
-                                fetcher.state === "submitting"
-                              }
-                              // 点击事件：调用handleActivatePlan函数
-                              onClick={() =>
-                                handleActivatePlan(plan.name, plan.price)
-                              }
-                            >
-                              {/* 根据加载状态显示不同的按钮文本 */}
-                              {loadingPlan === plan.name
-                                ? "Processing..."
-                                : plan.buttonText}
-                            </Button>
-                          )}
-                        </Box>
-                      </BlockStack>
-                    </Box>
-                  </Card>
-                </Box>
-              ))}
+                          <Box paddingBlockStart="400">
+                            {plan.buttonText && (
+                              <Button
+                                variant={plan.buttonVariant as any}
+                                size="large"
+                                fullWidth
+                                // 显示加载状态：如果当前计划正在处理，显示加载图标
+                                loading={loadingPlan === plan.name}
+                                // 禁用按钮：如果任何计划正在处理或fetcher正在提交数据
+                                disabled={
+                                  isCurrentPlan ||
+                                  loadingPlan !== null ||
+                                  fetcher.state === "submitting"
+                                }
+                                // 点击事件：调用handleActivatePlan函数
+                                onClick={() =>
+                                  handleActivatePlan(plan.name, plan.price)
+                                }
+                              >
+                                {/* 根据加载状态显示不同的按钮文本 */}
+                                {isCurrentPlan
+                                  ? "Current Plan"
+                                  : loadingPlan === plan.name
+                                    ? "Processing..."
+                                    : plan.buttonText}
+                              </Button>
+                            )}
+                          </Box>
+                        </BlockStack>
+                      </Box>
+                    </Card>
+                  </Box>
+                );
+              })}
             </InlineStack>
           </BlockStack>
         </Layout.Section>

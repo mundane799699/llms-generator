@@ -1,7 +1,6 @@
 import { json } from "@remix-run/node";
 import type { ActionFunctionArgs } from "@remix-run/node";
 import { authenticate } from "../shopify.server";
-import prisma from "../db.server";
 
 /**
  * 处理订阅创建的API路由
@@ -15,6 +14,7 @@ export async function action({ request }: ActionFunctionArgs) {
     // 获取店铺域名
     const shop = session.shop;
     console.log("当前店铺:", shop);
+    let myShop = shop.replace(".myshopify.com", "");
 
     // 解析请求体，获取订阅计划信息
     const formData = await request.formData();
@@ -43,6 +43,9 @@ export async function action({ request }: ActionFunctionArgs) {
     } else {
       throw new Error("无效的订阅计划");
     }
+
+    // Now construct the return URL
+    const returnUrl = `https://admin.shopify.com/store/${myShop}/apps/${process.env.APP_NAME}/app/plans`;
 
     // 使用Shopify GraphQL API创建订阅
     // appSubscriptionCreate mutation会创建一个新的应用订阅
@@ -80,7 +83,7 @@ export async function action({ request }: ActionFunctionArgs) {
             },
           ],
           // 支付完成后的返回URL
-          returnUrl: `${process.env.SHOPIFY_APP_URL}/app/plans?subscription=success`,
+          returnUrl: returnUrl,
           // 在开发环境中使用测试模式
           test: process.env.NODE_ENV !== "production",
         },
@@ -126,74 +129,12 @@ export async function action({ request }: ActionFunctionArgs) {
       confirmationUrl,
     });
 
-    // 保存订阅信息到数据库
-    try {
-      // 先检查是否已存在该店铺的订阅记录
-      const existingSubscription = await (
-        prisma as any
-      ).subscription.findUnique({
-        where: { shop },
-      });
-
-      let dbSubscription;
-
-      if (existingSubscription) {
-        // 更新现有记录
-        dbSubscription = await prisma.subscription.update({
-          where: { shop },
-          data: {
-            subscriptionId: shopifySubscription.id,
-            planName: planName,
-            status: "PENDING", // 初始状态为PENDING，等待支付完成
-            price: subscriptionParams.price,
-            currency: "USD",
-            interval: subscriptionParams.interval,
-            updatedAt: new Date(),
-          },
-        });
-        console.log("更新现有订阅记录:", dbSubscription.id);
-      } else {
-        // 创建新记录
-        dbSubscription = await prisma.subscription.create({
-          data: {
-            shop: shop,
-            subscriptionId: shopifySubscription.id,
-            planName: planName,
-            status: "PENDING", // 初始状态为PENDING，等待支付完成
-            price: subscriptionParams.price,
-            currency: "USD",
-            interval: subscriptionParams.interval,
-          },
-        });
-        console.log("创建新订阅记录:", dbSubscription.id);
-      }
-
-      // 返回成功响应，包含确认URL和数据库记录信息
-      return json({
-        success: true,
-        confirmationUrl: confirmationUrl,
-        subscription: {
-          shopifyId: shopifySubscription.id,
-          dbId: dbSubscription.id,
-          planName: dbSubscription.planName,
-          status: dbSubscription.status,
-          price: dbSubscription.price,
-          currency: dbSubscription.currency,
-        },
-      });
-    } catch (dbError) {
-      console.error("保存订阅到数据库时发生错误:", dbError);
-
-      // 即使数据库保存失败，Shopify订阅已经创建成功
-      // 我们仍然返回确认URL让用户可以完成支付
-      // 可以通过webhook后续同步数据库状态
-      return json({
-        success: true,
-        confirmationUrl: confirmationUrl,
-        subscription: shopifySubscription,
-        warning: "订阅创建成功，但本地数据同步可能存在延迟",
-      });
-    }
+    // 返回成功响应，包含确认URL
+    return json({
+      success: true,
+      confirmationUrl: confirmationUrl,
+      subscription: shopifySubscription,
+    });
   } catch (error) {
     console.error("订阅创建过程中发生错误:", error);
     return json(
