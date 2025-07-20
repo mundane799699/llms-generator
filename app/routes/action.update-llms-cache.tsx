@@ -25,6 +25,12 @@ interface ShopifyCollectionNode {
   // onlineStoreUrl: string | null; // This field doesn't exist on the Collection type directly
 }
 
+interface ShopifyBlogNode {
+  id: string;
+  title: string;
+  handle: string;
+}
+
 interface ShopifyPageNode {
   id: string;
   title: string;
@@ -177,6 +183,25 @@ const GET_COLLECTIONS_QUERY = `#graphql
   }
 `;
 
+// https://shopify.dev/docs/api/admin-graphql/latest/queries/blogs
+const GET_BLOGS_QUERY = `#graphql
+  query GetBlogs($first: Int!, $after: String) {
+    blogs(first: $first, after: $after) {
+      edges {
+        cursor
+        node {
+          id
+          title
+          handle
+        }
+      }
+      pageInfo {
+        hasNextPage
+      }
+    }
+  }
+`;
+
 const GET_PAGES_QUERY = `#graphql
   query GetPages($first: Int!, $after: String) {
     pages(first: $first, after: $after) {
@@ -219,20 +244,25 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
     // Determine product limit based on subscription plan
     let productLimit: number | undefined;
+    let blogLimit: number | undefined;
     if (!currentPlan) {
       // Free plan
       productLimit = 100;
+      blogLimit = 5;
     } else if (currentPlan === BASIC_PLAN) {
       productLimit = 500;
+      blogLimit = 100;
     } else if (currentPlan === PRO_PLAN) {
       productLimit = undefined; // No limit for Pro plan
+      blogLimit = undefined; // No limit for Pro plan
     } else {
       // Default to free plan limits for unknown plans
       productLimit = 100;
+      blogLimit = 5;
     }
 
     console.log(
-      `Current plan: ${currentPlan || "Free"}, Product limit: ${productLimit || "Unlimited"}`,
+      `Current plan: ${currentPlan || "Free"}, Product limit: ${productLimit || "Unlimited"}, Blog limit: ${blogLimit || "Unlimited"}`,
     );
 
     let llmsTxtContent = "";
@@ -306,6 +336,26 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       llmsTxtContent += "\n";
     }
 
+    // --- Fetch Blogs ---
+    const blogs = await fetchAllShopifyResources<ShopifyBlogNode>(
+      admin,
+      GET_BLOGS_QUERY,
+      {},
+      (data) => data.blogs.edges,
+      "blogs",
+      blogLimit, // Pass the blog limit
+    );
+    if (blogs.length > 0) {
+      console.log("fetch blogs success.");
+      llmsTxtContent += "## Blogs\n";
+      blogs.forEach((blog) => {
+        // Construct the onlineStoreUrl for blogs dynamically
+        const blogUrl = `https://${shopDomain}/blogs/${blog.handle}`;
+        llmsTxtContent += `- [${blog.title}](${blogUrl})\n`;
+      });
+      llmsTxtContent += "\n";
+    }
+
     // --- Fetch Pages ---
     const pages = await fetchAllShopifyResources<ShopifyPageNode>(
       admin,
@@ -341,6 +391,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       plan: currentPlan || "Free",
       productLimit: productLimit,
       productsIncluded: products.length,
+      blogLimit: blogLimit,
+      blogsIncluded: blogs.length,
     });
   } catch (error: any) {
     console.error("Error updating LLMs.txt cache:", error);

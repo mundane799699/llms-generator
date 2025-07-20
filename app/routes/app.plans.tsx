@@ -31,6 +31,7 @@ export const loader = async ({ request }: ActionFunctionArgs) => {
   // For development stores, use `isTest: true`
   const isDevelopmentStore = process.env.NODE_ENV === "development";
 
+  // https://shopify.dev/docs/api/shopify-app-remix/v3/apis/billing#example-check
   const { hasActivePayment, appSubscriptions } = await billing.check({
     plans: [BASIC_PLAN, PRO_PLAN],
     isTest: isDevelopmentStore,
