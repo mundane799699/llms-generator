@@ -231,6 +231,25 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   try {
     console.log("Starting llms.txt content generation for shop:", shop);
 
+    // 获取设置配置
+    let settings = await db.settings.findUnique({
+      where: { shop },
+    });
+
+    // 如果没有设置记录，创建一个默认的
+    if (!settings) {
+      settings = await db.settings.create({
+        data: { shop },
+      });
+    }
+
+    console.log("Settings loaded:", {
+      includeProducts: settings.includeProducts,
+      includeCollections: settings.includeCollections,
+      includePages: settings.includePages,
+      includeArticles: settings.includeArticles,
+    });
+
     // Check user's subscription status to determine product limits
     const isDevelopmentStore = process.env.NODE_ENV === "development";
     const { hasActivePayment, appSubscriptions } = await billing.check({
@@ -285,94 +304,110 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       llmsTxtContent += `${shopDescription}\n\n`;
     }
 
-    // --- Fetch Products with limit based on subscription ---
-    const products = await fetchAllShopifyResources<ShopifyProductNode>(
-      admin,
-      GET_PRODUCTS_QUERY,
-      {},
-      (data) => data.products.edges,
-      "products",
-      productLimit, // Pass the product limit
-    );
-    if (products.length > 0) {
-      console.log("fetch products success.");
-      llmsTxtContent += "## Products\n";
-      products.forEach((product) => {
-        // product is now ShopifyProductNode
-        const productUrl =
-          product.onlineStoreUrl ||
-          `https://${shopDomain}/products/${product.handle}`;
-        llmsTxtContent += `- [${product.title}](${productUrl})  \n`;
-        llmsTxtContent += `  Price: ${product.priceRangeV2.minVariantPrice.amount} ${product.priceRangeV2.minVariantPrice.currencyCode}\n`;
-        product.options?.forEach((option) => {
-          // option is now { name: string; values: string[] }
-          if (
-            option.name.toLowerCase() === "color" &&
-            option.values.length > 0
-          ) {
-            llmsTxtContent += `  ${option.name}: ${option.values.join(", ")}\n`;
-          }
+    // --- Fetch Products with limit based on subscription (only if enabled in settings) ---
+    if (settings.includeProducts) {
+      const products = await fetchAllShopifyResources<ShopifyProductNode>(
+        admin,
+        GET_PRODUCTS_QUERY,
+        {},
+        (data) => data.products.edges,
+        "products",
+        productLimit, // Pass the product limit
+      );
+      if (products.length > 0) {
+        console.log("fetch products success.");
+        llmsTxtContent += "## Products\n";
+        products.forEach((product) => {
+          // product is now ShopifyProductNode
+          const productUrl =
+            product.onlineStoreUrl ||
+            `https://${shopDomain}/products/${product.handle}`;
+          llmsTxtContent += `- [${product.title}](${productUrl})  \n`;
+          llmsTxtContent += `  Price: ${product.priceRangeV2.minVariantPrice.amount} ${product.priceRangeV2.minVariantPrice.currencyCode}\n`;
+          product.options?.forEach((option) => {
+            // option is now { name: string; values: string[] }
+            if (
+              option.name.toLowerCase() === "color" &&
+              option.values.length > 0
+            ) {
+              llmsTxtContent += `  ${option.name}: ${option.values.join(", ")}\n`;
+            }
+          });
         });
-      });
-      llmsTxtContent += "\n";
+        llmsTxtContent += "\n";
+      }
+    } else {
+      console.log("Skipping products fetch - disabled in settings");
     }
 
-    // --- Fetch Collections ---
-    const collections = await fetchAllShopifyResources<ShopifyCollectionNode>(
-      admin,
-      GET_COLLECTIONS_QUERY,
-      {},
-      (data) => data.collections.edges,
-      "collections",
-    );
-    if (collections.length > 0) {
-      console.log("fetch collections success.");
-      llmsTxtContent += "## Product Categories\n";
-      collections.forEach((collection) => {
-        // Construct the onlineStoreUrl for collections dynamically
-        const collectionUrl = `https://${shopDomain}/collections/${collection.handle}`;
-        llmsTxtContent += `- [${collection.title}](${collectionUrl})\n`;
-      });
-      llmsTxtContent += "\n";
+    // --- Fetch Collections (only if enabled in settings) ---
+    if (settings.includeCollections) {
+      const collections = await fetchAllShopifyResources<ShopifyCollectionNode>(
+        admin,
+        GET_COLLECTIONS_QUERY,
+        {},
+        (data) => data.collections.edges,
+        "collections",
+      );
+      if (collections.length > 0) {
+        console.log("fetch collections success.");
+        llmsTxtContent += "## Product Categories\n";
+        collections.forEach((collection) => {
+          // Construct the onlineStoreUrl for collections dynamically
+          const collectionUrl = `https://${shopDomain}/collections/${collection.handle}`;
+          llmsTxtContent += `- [${collection.title}](${collectionUrl})\n`;
+        });
+        llmsTxtContent += "\n";
+      }
+    } else {
+      console.log("Skipping collections fetch - disabled in settings");
     }
 
-    // --- Fetch Blogs ---
-    const blogs = await fetchAllShopifyResources<ShopifyBlogNode>(
-      admin,
-      GET_BLOGS_QUERY,
-      {},
-      (data) => data.blogs.edges,
-      "blogs",
-      blogLimit, // Pass the blog limit
-    );
-    if (blogs.length > 0) {
-      console.log("fetch blogs success.");
-      llmsTxtContent += "## Blogs\n";
-      blogs.forEach((blog) => {
-        // Construct the onlineStoreUrl for blogs dynamically
-        const blogUrl = `https://${shopDomain}/blogs/${blog.handle}`;
-        llmsTxtContent += `- [${blog.title}](${blogUrl})\n`;
-      });
-      llmsTxtContent += "\n";
+    // --- Fetch Blogs (only if enabled in settings) ---
+    if (settings.includeArticles) {
+      const blogs = await fetchAllShopifyResources<ShopifyBlogNode>(
+        admin,
+        GET_BLOGS_QUERY,
+        {},
+        (data) => data.blogs.edges,
+        "blogs",
+        blogLimit, // Pass the blog limit
+      );
+      if (blogs.length > 0) {
+        console.log("fetch blogs success.");
+        llmsTxtContent += "## Blogs\n";
+        blogs.forEach((blog) => {
+          // Construct the onlineStoreUrl for blogs dynamically
+          const blogUrl = `https://${shopDomain}/blogs/${blog.handle}`;
+          llmsTxtContent += `- [${blog.title}](${blogUrl})\n`;
+        });
+        llmsTxtContent += "\n";
+      }
+    } else {
+      console.log("Skipping blogs fetch - disabled in settings");
     }
 
-    // --- Fetch Pages ---
-    const pages = await fetchAllShopifyResources<ShopifyPageNode>(
-      admin,
-      GET_PAGES_QUERY,
-      {},
-      (data) => data.pages.edges,
-      "pages",
-    );
-    if (pages.length > 0) {
-      console.log("fetch pages success.");
-      llmsTxtContent += "## Pages\n";
-      pages.forEach((page) => {
-        // Construct the onlineStoreUrl for pages dynamically
-        const pageUrl = `https://${shopDomain}/pages/${page.handle}`;
-        llmsTxtContent += `- [${page.title}](${pageUrl})\n`;
-      });
-      llmsTxtContent += "\n";
+    // --- Fetch Pages (only if enabled in settings) ---
+    if (settings.includePages) {
+      const pages = await fetchAllShopifyResources<ShopifyPageNode>(
+        admin,
+        GET_PAGES_QUERY,
+        {},
+        (data) => data.pages.edges,
+        "pages",
+      );
+      if (pages.length > 0) {
+        console.log("fetch pages success.");
+        llmsTxtContent += "## Pages\n";
+        pages.forEach((page) => {
+          // Construct the onlineStoreUrl for pages dynamically
+          const pageUrl = `https://${shopDomain}/pages/${page.handle}`;
+          llmsTxtContent += `- [${page.title}](${pageUrl})\n`;
+        });
+        llmsTxtContent += "\n";
+      }
+    } else {
+      console.log("Skipping pages fetch - disabled in settings");
     }
 
     const trimmedContent = llmsTxtContent.trim();
@@ -390,9 +425,11 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       charCount: trimmedContent.length,
       plan: currentPlan || "Free",
       productLimit: productLimit,
-      productsIncluded: products.length,
+      productsIncluded: settings.includeProducts ? "enabled" : "disabled",
       blogLimit: blogLimit,
-      blogsIncluded: blogs.length,
+      blogsIncluded: settings.includeArticles ? "enabled" : "disabled",
+      collectionsIncluded: settings.includeCollections ? "enabled" : "disabled",
+      pagesIncluded: settings.includePages ? "enabled" : "disabled",
     });
   } catch (error: any) {
     console.error("Error updating LLMs.txt cache:", error);

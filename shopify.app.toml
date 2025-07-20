@@ -3,7 +3,7 @@
 client_id = "b62d3887e9fd0592bbdd077071c28061"
 name = "llms-generator"
 handle = "llms-generator"
-application_url = "https://shopify.mundane.ink"
+application_url = "https://replaced-value-providence-trees.trycloudflare.com"
 embedded = true
 
 [build]
@@ -31,15 +31,15 @@ scopes = "write_products,read_content"
 
 [auth]
 redirect_urls = [
-  "https://shopify.mundane.ink/auth/callback",
-  "https://shopify.mundane.ink/auth/shopify/callback",
-  "https://shopify.mundane.ink/api/auth/callback"
+  "https://replaced-value-providence-trees.trycloudflare.com/auth/callback",
+  "https://replaced-value-providence-trees.trycloudflare.com/auth/shopify/callback",
+  "https://replaced-value-providence-trees.trycloudflare.com/api/auth/callback"
 ]
 
 [pos]
 embedded = false
 
 [app_proxy]
-url = "https://shopify.mundane.ink/proxy"
+url = "https://replaced-value-providence-trees.trycloudflare.com/proxy"
 subpath = "llmstxt"
 prefix = "apps"
