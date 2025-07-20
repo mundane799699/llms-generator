@@ -221,14 +221,14 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     let productLimit: number | undefined;
     if (!currentPlan) {
       // Free plan
-      productLimit = 10;
+      productLimit = 100;
     } else if (currentPlan === BASIC_PLAN) {
       productLimit = 500;
     } else if (currentPlan === PRO_PLAN) {
       productLimit = undefined; // No limit for Pro plan
     } else {
       // Default to free plan limits for unknown plans
-      productLimit = 10;
+      productLimit = 100;
     }
 
     console.log(
