@@ -1,5 +1,5 @@
 import { ActionFunctionArgs, json } from "@remix-run/node";
-import { authenticate } from "../shopify.server";
+import { authenticate, BASIC_PLAN, PRO_PLAN } from "../shopify.server";
 import db from "../db.server"; // Prisma client - Changed import
 
 // Define interfaces for the node types we expect from GraphQL
@@ -39,17 +39,24 @@ async function fetchAllShopifyResources<T_Node>(
   variables: Record<string, any>,
   extractEdges: (data: any) => Array<{ cursor: string; node: T_Node }>,
   resourceName: string,
+  maxItems?: number, // Add optional maxItems parameter
 ): Promise<T_Node[]> {
   let allItems: T_Node[] = [];
   let hasNextPage = true;
   let cursor = null;
   const BATCH_SIZE = 50;
 
-  console.log(`Starting to fetch ${resourceName}...`);
+  console.log(
+    `Starting to fetch ${resourceName}${maxItems ? ` (max: ${maxItems})` : ""}...`,
+  );
 
-  while (hasNextPage) {
+  while (hasNextPage && (!maxItems || allItems.length < maxItems)) {
+    // Calculate how many items to request in this batch
+    const remainingItems = maxItems ? maxItems - allItems.length : BATCH_SIZE;
+    const batchSize = Math.min(BATCH_SIZE, remainingItems);
+
     const response = await admin.graphql(query, {
-      variables: { ...variables, first: BATCH_SIZE, after: cursor },
+      variables: { ...variables, first: batchSize, after: cursor },
     });
     const responseJson = await response.json();
 
@@ -82,9 +89,16 @@ async function fetchAllShopifyResources<T_Node>(
       continue;
     }
 
-    allItems = allItems.concat(
-      edges.map((edge: { node: T_Node }) => edge.node),
-    ); // Added type for edge
+    const newItems = edges.map((edge: { node: T_Node }) => edge.node);
+
+    // If we have a limit, only add items up to the limit
+    if (maxItems && allItems.length + newItems.length > maxItems) {
+      const itemsToAdd = maxItems - allItems.length;
+      allItems = allItems.concat(newItems.slice(0, itemsToAdd));
+      hasNextPage = false; // Stop fetching since we've reached the limit
+    } else {
+      allItems = allItems.concat(newItems);
+    }
 
     let pageInfoPath = query.match(/(\w+)\s*\(/);
     let pageInfo = null;
@@ -96,7 +110,7 @@ async function fetchAllShopifyResources<T_Node>(
       pageInfo = dataContainer[Object.keys(dataContainer)[0]].pageInfo;
     }
 
-    if (pageInfo) {
+    if (pageInfo && !maxItems) {
       hasNextPage = pageInfo.hasNextPage;
       if (hasNextPage && edges.length > 0) {
         cursor = edges[edges.length - 1].cursor;
@@ -182,7 +196,7 @@ const GET_PAGES_QUERY = `#graphql
 `;
 
 export const action = async ({ request }: ActionFunctionArgs) => {
-  const { admin, session } = await authenticate.admin(request);
+  const { admin, session, billing } = await authenticate.admin(request);
   const shop = session.shop; // This is the myshopify.com domain
 
   if (!admin) {
@@ -191,6 +205,36 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
   try {
     console.log("Starting llms.txt content generation for shop:", shop);
+
+    // Check user's subscription status to determine product limits
+    const isDevelopmentStore = process.env.NODE_ENV === "development";
+    const { hasActivePayment, appSubscriptions } = await billing.check({
+      plans: [BASIC_PLAN, PRO_PLAN],
+      isTest: isDevelopmentStore,
+    });
+
+    const activeSubscription = hasActivePayment ? appSubscriptions[0] : null;
+    const currentPlan = activeSubscription?.name || null;
+    console.log("currentPlan = ", currentPlan);
+
+    // Determine product limit based on subscription plan
+    let productLimit: number | undefined;
+    if (!currentPlan) {
+      // Free plan
+      productLimit = 10;
+    } else if (currentPlan === BASIC_PLAN) {
+      productLimit = 500;
+    } else if (currentPlan === PRO_PLAN) {
+      productLimit = undefined; // No limit for Pro plan
+    } else {
+      // Default to free plan limits for unknown plans
+      productLimit = 10;
+    }
+
+    console.log(
+      `Current plan: ${currentPlan || "Free"}, Product limit: ${productLimit || "Unlimited"}`,
+    );
+
     let llmsTxtContent = "";
 
     // Use session.shop directly as it's guaranteed to be the myshopify.com domain for Admin API context
@@ -211,13 +255,14 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       llmsTxtContent += `${shopDescription}\n\n`;
     }
 
-    // --- Fetch Products ---
+    // --- Fetch Products with limit based on subscription ---
     const products = await fetchAllShopifyResources<ShopifyProductNode>(
       admin,
       GET_PRODUCTS_QUERY,
       {},
       (data) => data.products.edges,
       "products",
+      productLimit, // Pass the product limit
     );
     if (products.length > 0) {
       console.log("fetch products success.");
@@ -293,6 +338,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       success: true,
       message: "LLMs.txt cache updated.",
       charCount: trimmedContent.length,
+      plan: currentPlan || "Free",
+      productLimit: productLimit,
+      productsIncluded: products.length,
     });
   } catch (error: any) {
     console.error("Error updating LLMs.txt cache:", error);
