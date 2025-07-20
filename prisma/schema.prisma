@@ -9,8 +9,9 @@ generator client {
 // enough when changing adapters.
 // See https://www.prisma.io/docs/orm/reference/prisma-schema-reference#string for more information
 datasource db {
-  provider = "sqlite"
-  url      = "file:dev.sqlite"
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model Session {
@@ -39,58 +40,58 @@ model Session {
 // }
 
 model LlmContentCache {
-  id         Int      @id @default(autoincrement())
-  shop       String   @unique // shop domain should be unique
-  content    String   // Removed @db.Text for SQLite compatibility
-  updatedAt  DateTime @updatedAt
-  createdAt  DateTime @default(now())
+  id        Int      @id @default(autoincrement())
+  shop      String   @unique // shop domain should be unique
+  content   String // Removed @db.Text for SQLite compatibility
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
 }
 
 model Settings {
-  id        Int      @id @default(autoincrement())
-  shop      String   @unique // 每个店铺唯一
-  
+  id   Int    @id @default(autoincrement())
+  shop String @unique // 每个店铺唯一
+
   // 爬虫设置
   gptBot         Boolean @default(true)
   anthropicAI    Boolean @default(true)
   googleExtended Boolean @default(true)
   perplexityBot  Boolean @default(true)
   deepSeekBot    Boolean @default(true)
-  
+
   // 内容设置
   includeProducts    Boolean @default(true)
   includeCollections Boolean @default(true)
   includePages       Boolean @default(true)
   includeArticles    Boolean @default(true)
-  
+
   // 自动同步设置
   autoSyncEnabled Boolean @default(true)
-  
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 
 model Subscription {
-  id               Int      @id @default(autoincrement())
-  shop             String   @unique // 每个店铺只能有一个活跃订阅
-  subscriptionId   String?  @unique // Shopify订阅ID，初始创建时可能为空
-  planName         String   // "Basic" 或 "Pro"
-  status           String   @default("PENDING") // "PENDING", "ACTIVE", "CANCELLED", "EXPIRED", "FROZEN"
-  price            Float    // 订阅价格
-  currency         String   @default("USD") // 货币代码
-  interval         String   @default("EVERY_30_DAYS") // 计费周期
-  
+  id             Int     @id @default(autoincrement())
+  shop           String  @unique // 每个店铺只能有一个活跃订阅
+  subscriptionId String? @unique // Shopify订阅ID，初始创建时可能为空
+  planName       String // "Basic" 或 "Pro"
+  status         String  @default("PENDING") // "PENDING", "ACTIVE", "CANCELLED", "EXPIRED", "FROZEN"
+  price          Float // 订阅价格
+  currency       String  @default("USD") // 货币代码
+  interval       String  @default("EVERY_30_DAYS") // 计费周期
+
   // 时间相关字段
   currentPeriodStart DateTime? // 当前计费周期开始时间
   currentPeriodEnd   DateTime? // 当前计费周期结束时间
   trialStart         DateTime? // 试用开始时间
   trialEnd           DateTime? // 试用结束时间
   cancelledAt        DateTime? // 取消时间
-  
+
   // 元数据
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
-  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   // 索引
   @@index([shop, status])
 }
