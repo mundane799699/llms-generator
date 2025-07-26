@@ -1,0 +1,16 @@
+{
+    "builds": [
+      {
+        "src": "package.json",
+        "use": "@vercel/remix"
+      }
+    ],
+    "env": {
+      "NODE_ENV": "production"
+    },
+    "functions": {
+      "app/entry.server.tsx": {
+        "includeFiles": "prisma/**"
+      }
+    }
+  }
