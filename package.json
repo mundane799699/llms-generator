@@ -3,6 +3,7 @@
   "private": true,
   "scripts": {
     "build": "remix vite:build",
+    "postinstall": "prisma generate",
     "dev": "shopify app dev --tunnel-url https://shopify.mundane.ink:443",
     "dev:local": "shopify app dev",
     "config:link": "shopify app config link",
